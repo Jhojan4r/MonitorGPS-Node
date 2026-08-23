@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emisor GPS (Simulador Móvil)</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 50px; }
+        button { padding: 15px 30px; font-size: 18px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        #estado { margin-top: 20px; font-size: 1.2em; font-weight: bold; }
+        #coordenadas { margin-top: 10px; color: #555; }
+    </style>
+</head>
+<body>
+    <h1>🚗 Emisor de GPS</h1>
+    <button id="btnEmpezar">Empezar a Transmitir</button>
+    <div id="estado">🔴 Detenido</div>
+    <div id="coordenadas"></div>
+
+    <!-- Cliente de Socket.io -->
+    <script src="/socket.io/socket.io.js"></script>
+
+    <script>
+        // Conectar al backend
+        const socket = io('http://localhost:3000');
+        const usuarioFalso = `Chofer_${Math.floor(Math.random() * 100)}`; // Crea un nombre tipo "Chofer_42"
+        
+        let watchId = null; // Guardará el ID del rastreador GPS
+
+        const btnEmpezar = document.getElementById('btnEmpezar');
+        const txtEstado = document.getElementById('estado');
+        const txtCoordenadas = document.getElementById('coordenadas');
+
+        btnEmpezar.addEventListener('click', () => {
+            if (!navigator.geolocation) {
+                alert('Tu navegador no soporta GPS.');
+                return;
+            }
+
+            if (watchId === null) {
+                // EMPEZAR A RASTREAR
+                txtEstado.innerHTML = '🟢 Transmitiendo...';
+                btnEmpezar.innerText = 'Detener';
+                
+                // watchPosition vigila el GPS constantemente
+                watchId = navigator.geolocation.watchPosition(
+                    (posicion) => {
+                        const lat = posicion.coords.latitude;
+                        const lon = posicion.coords.longitude;
+                        
+                        txtCoordenadas.innerHTML = `Lat: ${lat.toFixed(5)} | Lon: ${lon.toFixed(5)}`;
+
+                        // ENVIAR POR WEBSOCKET AL SERVIDOR
+                        socket.emit('enviarUbicacion', {
+                            usuario: usuarioFalso,
+                            latitud: lat,
+                            longitud: lon
+                        });
+                    },
+                    (error) => {
+                        console.error("Error de GPS:", error);
+                        txtEstado.innerHTML = '⚠️ Error obteniendo GPS';
+                    },
+                    { enableHighAccuracy: true } // Forzar máxima precisión
+                );
+            } else {
+                // DETENER RASTREO
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+                txtEstado.innerHTML = '🔴 Detenido';
+                btnEmpezar.innerText = 'Empezar a Transmitir';
+                txtCoordenadas.innerHTML = '';
+            }
+        });
+    </script>
+</body>
+</html>

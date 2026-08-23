@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor GPS - Panel Admin</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { margin: 0; padding: 0; }
+        #mapa { height: 100vh; width: 100%; } /* Mapa a pantalla completa */
+    </style>
+</head>
+<body>
+    <div id="mapa"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Cliente de Socket.io (Se conecta al backend) -->
+    <script src="/socket.io/socket.io.js"></script>    
+    <script>
+            const map = L.map('mapa').setView([-13.5226, -71.9673], 15);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+
+            const vehiculos = {};
+            const historialesRutas = {}; // 👈 Guardará las líneas de cada carro
+
+            const socket = io(); 
+
+            socket.on('connect', () => {
+                console.log('🟢 Mapa conectado al servidor de WebSockets');
+            });
+
+            socket.on('ubicacionActualizada', (datos) => {
+                const { usuario, latitud, longitud } = datos;
+                const nuevaPos = [latitud, longitud];
+
+                // 1. Si el vehículo ya existe, movemos el marcador y agregamos el punto a su ruta
+                if (vehiculos[usuario]) {
+                    vehiculos[usuario].setLatLng(nuevaPos);
+                    
+                    // Añadir punto a la línea de recorrido
+                    historialesRutas[usuario].addLatLng(nuevaPos);
+                } else {
+                    // 2. Si es nuevo, creamos su marcador
+                    vehiculos[usuario] = L.marker(nuevaPos).addTo(map)
+                        .bindPopup(`<b>🚗 Vehículo:</b> ${usuario}`)
+                        .openPopup();
+
+                    // Creamos una línea vacía (Polyline) para este carro
+                    historialesRutas[usuario] = L.polyline([nuevaPos], { color: 'blue', weight: 4 }).addTo(map);
+                }
+                
+                map.panTo(nuevaPos);
+            });
+        </script>
+</body>
+</html>
