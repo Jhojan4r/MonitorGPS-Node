@@ -12,12 +12,10 @@ const io = new Server(server, {
 });
 
 // Configuración de la conexión a PostgreSQL (por defecto Postgres.app usa tu usuario de Mac)
+// Configuración dinámica para PostgreSQL (lee de Render o usa tu Mac local)
 const pool = new Pool({
-  user: process.env.USER, // Tu usuario actual de la Mac
-  host: 'localhost',
-  database: 'monitorgps_db',
-  password: '', // Postgres.app por defecto no pide contraseña en local
-  port: 5432,
+  connectionString: process.env.DATABASE_URL || 'postgresql://@localhost:5432/monitorgps_db',
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false // Obligatorio para bases de datos en la nube
 });
 
 // Ruta para obtener el historial de ubicaciones de un usuario
